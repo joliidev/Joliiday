@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Joliiday — Premium Travel Journal</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <style>
+        :root {
+            --cream: #FAF9F6;
+            --coconut-cream: #F3EFE0;
+            --sage: #849671;
+            --sage-light: #A5B68D;
+            --olive-chutney: #6B705C;
+            --earth: #4A3728;
+            --terracotta: #B5651D;
+            --gold: #D4AF37;
+            --white: #FFFFFF;
+            --shadow: 0 12px 30px rgba(0,0,0,0.05);
+            --heart-red: #E91E63;
+            --nav-bg: rgba(255,255,255,0.95);
+        }
+
+        /* Dark Mode Variables */
+        body.dark-mode {
+            --cream: #1A1A17;
+            --coconut-cream: #2D2D2A;
+            --white: #242421;
+            --earth: #E0E0DB;
+            --shadow: 0 12px 30px rgba(0,0,0,0.3);
+            --nav-bg: rgba(26, 26, 23, 0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--cream); color: var(--earth); padding-bottom: 100px; overflow-x: hidden; transition: background 0.3s; }
+        h1, h2, h3, .logo { font-family: 'Playfair Display', serif; }
+
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--cream); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s ease-out;
+        }
+        .splash-logo { font-size: 48px; color: var(--sage); font-style: italic; margin-bottom: 5px; }
+        .splash-slogan { font-size: 14px; color: var(--earth); font-style: italic; opacity: 0.8; }
+
+        .app-container { max-width: 480px; margin: 0 auto; padding: 24px 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo { font-size: 28px; color: var(--sage); font-style: italic; }
+
+        #map { width: 100%; height: 220px; border-radius: 25px; margin-bottom: 20px; box-shadow: var(--shadow); z-index: 10; border: 4px solid var(--white); }
+        .leaflet-tile-pane { filter: sepia(0.5) hue-rotate(40deg) brightness(1.0) contrast(0.9); }
+
+        .card { background: var(--white); border-radius: 25px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px; position: relative; animation: fadeIn 0.4s ease-out; }
+        .section-title { font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; font-weight: 700; }
+
+        .trip-badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 8px; }
+        .badge-ongoing { background: #E8F5E9; color: #2E7D32; }
+        .badge-coming { background: #FFF3E0; color: #EF6C00; }
+
+        .delete-btn { position: absolute; top: 20px; right: 20px; color: #D7CCC8; font-size: 20px; cursor: pointer; z-index: 10; padding: 5px; transition: 0.2s; }
+        .delete-btn:hover { color: var(--terracotta); }
+
+        input, textarea { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1.5px solid rgba(128,128,128,0.1); background: rgba(128,128,128,0.05); margin-bottom: 10px; font-family: inherit; font-size: 14px; color: var(--earth); }
+        .btn { background: var(--sage); color: var(--white); border: none; padding: 14px; border-radius: 15px; font-weight: 600; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 12px 10px 25px; border-top: 1px solid rgba(0,0,0,0.05); z-index: 100; }
+        .nav-link { color: #A0A0A0; text-decoration: none; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 700; transition: 0.3s; }
+        .nav-link.active { color: var(--sage); }
+        .nav-link i { font-size: 22px; margin-bottom: 4px; }
+
+        .hidden { display: none !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .star-rating { display: flex; justify-content: center; gap: 8px; font-size: 38px; color: var(--gold); margin: 15px 0; }
+        .heart-toggle { font-size: 32px; cursor: pointer; transition: transform 0.2s; display: block; text-align: center; margin: 10px 0; color: #CCC; }
+        .heart-toggle.is-fav { color: var(--heart-red); transform: scale(1.2); }
+
+        .photo-placeholder { width: 100%; height: 180px; background: rgba(128,128,128,0.05); border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #AAA; overflow: hidden; margin-bottom: 15px; border: 2px dashed #DDD; cursor: pointer; }
+        .photo-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+
+        .dest-item-card { background: rgba(128,128,128,0.03); padding: 15px; border-radius: 20px; margin-bottom: 15px; border: 1px solid rgba(128,128,128,0.08); }
+        .dest-photo-box { width: 100%; height: 120px; border-radius: 15px; background: #EEE; margin-top: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; border: 1px dashed #CCC; }
+        .dest-photo-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        .wish-card { border: 1px solid #D6D2C4; background-color: var(--coconut-cream) !important; }
+        .wish-card textarea { background: var(--white); border-color: #D6D2C4; }
+        .manifest-btn { background: var(--olive-chutney) !important; color: var(--white); margin-top: 10px; }
+
+        /* Premium Memories Card Design */
+        .mem-card { padding: 0 !important; overflow: hidden; border: none; cursor: pointer; position: relative; transition: transform 0.2s; }
+        .mem-card:active { transform: scale(0.98); }
+        .mem-photo-main { width: 100%; height: 200px; object-fit: cover; border-radius: 25px 25px 0 0; }
+        .mem-content { padding: 18px; }
+
+        .floating-love { 
+            position: absolute; top: 15px; right: 15px; 
+            background: white; color: #CCC; width: 40px; height: 40px; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 10; font-size: 20px; transition: 0.3s;
+        }
+        .floating-love.is-active { color: var(--heart-red); animation: heartPop 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
+
+        @keyframes heartPop { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+
+        .mem-journal-summary { 
+            font-size: 13px; color: #888; margin: 8px 0; 
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
+            overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
+        }
+
+        .mem-thumb-strip {
+            display: flex; gap: 10px; padding: 0 18px 18px 18px; overflow-x: auto; scrollbar-width: none;
+        }
+        .mem-thumb-strip::-webkit-scrollbar { display: none; }
+        .mem-thumb-wrapper {
+            position: relative; flex: 0 0 65px; height: 65px; border-radius: 12px; overflow: hidden; background: #eee; border: 1px solid rgba(128,128,128,0.1);
+        }
+        .mem-thumb-img { width: 100%; height: 100%; object-fit: cover; }
+        .mem-thumb-more {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+        }
+
+        .overlay-mask { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); z-index: 1000; display: none; 
+            align-items: flex-end; backdrop-filter: blur(2px);
+        }
+        .bottom-sheet { 
+            background: var(--white); width: 100%; border-radius: 30px 30px 0 0; 
+            padding: 20px; transform: translateY(100%); transition: transform 0.3s ease; 
+        }
+        .sheet-option { 
+            padding: 16px; display: flex; align-items: center; gap: 15px; 
+            font-weight: 600; border-radius: 15px; margin-bottom: 5px; cursor: pointer;
+        }
+        .sheet-option:active { background: rgba(128,128,128,0.1); }
+        .sheet-delete { color: var(--terracotta); }
+
+        /* Switch Toggle Design for Settings */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,0.1); margin-bottom: 10px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--sage); }
+        input:checked + .slider:before { transform: translateX(20px); }
+    </style>
+</head>
+<body>
+
+<div id="splash-screen">
+    <div class="splash-logo logo">Joliiday</div>
+    <div class="splash-slogan">Little plans, happy days.</div>
+</div>
+
+<div id="settings-overlay" class="overlay-mask" onclick="closeSettings()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+        <div style="width: 40px; height: 5px; background: #ddd; border-radius: 10px; margin: 0 auto 20px;"></div>
+        <h3 style="margin-bottom: 15px;">Account & Data</h3>
+        
+        <div class="toggle-row">
+            <span><i class="ph ph-moon" style="vertical-align: middle; margin-right: 10px;"></i> Dark Mode</span>
+            <label class="switch">
+                <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="sheet-option" onclick="exportData()">
+            <i class="ph ph-cloud-arrow-down"></i> Backup My Journey (.json)
+        </div>
+        <div class="sheet-option" onclick="document.getElementById('import-input').click()">
+            <i class="ph ph-cloud-arrow-up"></i> Import Data
+        </div>
+        <input type="file" id="import-input" class="hidden" accept=".json" onchange="importData(event)">
+
+        <div class="sheet-option" onclick="closeSettings()" style="margin-top: 10px; background: #eee; justify-content: center; color: #666;">
+            Close
+        </div>
+    </div>
+</div>
+
+<div class="app-container">
+    <header>
+        <div class="logo">Joliiday</div>
+        <i class="ph ph-user-circle" style="font-size: 28px; color: var(--sage); cursor: pointer;" onclick="openSettings()"></i>
+    </header>
+
+    <main id="page-home" class="page">
+        <div id="map"></div>
+        <div class="card">
+            <div class="section-title"><i class="ph ph-flag-pendant"></i> My Journey Progress</div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
+                <span style="color: gray;">Goal: 100 Places</span>
+                <span id="dest-count" style="font-weight: 700;">0/100</span>
+            </div>
+            <div style="height: 8px; background: #E8E6E1; border-radius: 10px; overflow: hidden;"><div id="main-progress" style="height: 100%; background: var(--sage); width: 0%; transition: 1s;"></div></div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <div style="flex:1; background:rgba(128,128,128,0.05); padding:12px; border-radius:15px; text-align:center;"><div id="stat-visited" style="font-size:20px; font-weight:700; color:var(--sage);">0</div><div style="font-size:10px; color:#888;">VISITED</div></div>
+                <div style="flex:1; background:rgba(128,128,128,0.05); padding:12px; border-radius:15px; text-align:center;"><div id="stat-wish" style="font-size:20px; font-weight:700; color:var(--sage);">0</div><div style="font-size:10px; color:#888;">WISHLIST</div></div>
+            </div>
+        </div>
+        <div id="home-trip-list"></div>
+    </main>
+
+    <main id="page-planner" class="page hidden">
+        <div class="card">
+            <div class="section-title"><i class="ph ph-calendar-plus"></i> New Trip Planner</div>
+            <input type="text" id="p-name" placeholder="Nama Trip (Contoh: Bali Summer)">
+            <div style="display:flex; gap:8px; margin-bottom: 10px;">
+                <div style="flex:1"><label style="font-size:10px; color:gray">Mulai</label><input type="date" id="p-start"></div>
+                <div style="flex:1"><label style="font-size:10px; color:gray">Selesai</label><input type="date" id="p-end"></div>
+            </div>
+            <label style="font-size:12px; font-weight:700; color:var(--terracotta); margin-bottom:5px; display:block;">Bucket List / Dreams:</label>
+            <textarea id="p-bucket" placeholder="Apa saja keinginanmu di trip ini?"></textarea>
+            <label style="font-size:12px; font-weight:700; color:var(--sage); margin-bottom:5px; display:block;">Destinations (Daily Checklist):</label>
+            <div id="place-inputs-container"><input type="text" class="p-place-item" placeholder="Contoh: Museum Nasional"></div>
+            <button class="btn" style="background:var(--sage-light); margin-bottom:10px;" onclick="addPlaceRow()">+ Tambah Destinasi</button>
+            <button class="btn" onclick="saveTrip()">Simpan Rencana</button>
+        </div>
+    </main>
+
+    <main id="page-wishlist" class="page hidden">
+        <div class="card" style="border-bottom: 4px solid var(--olive-chutney); background: var(--coconut-cream);">
+            <div class="section-title"><i class="ph ph-sparkle" style="color:var(--olive-chutney)"></i> Add to Wishlist</div>
+            <input type="text" id="wish-name" placeholder="Nama Kota/Negara">
+            <button class="btn" style="background:var(--olive-chutney)" onclick="addWish()">Simpan Impian</button>
+        </div>
+        <div id="wish-list-container"></div>
+    </main>
+
+    <main id="page-active" class="page hidden">
+        <div id="active-detail"></div>
+    </main>
+
+    <main id="page-memories" class="page hidden">
+        <h2 style="margin-bottom: 20px;">Memories</h2>
+        <div id="memories-container"></div>
+    </main>
+
+    <main id="page-memory-detail" class="page hidden">
+        <div id="memory-detail-content"></div>
+    </main>
+</div>
+
+<div id="mem-overlay" class="overlay-mask" onclick="closeOverlay()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+        <div style="width: 40px; height: 5px; background: #ddd; border-radius: 10px; margin: 0 auto 20px;"></div>
+        <div class="sheet-option" id="opt-detail"><i class="ph ph-eye"></i> Lihat Detail</div>
+        <div class="sheet-option sheet-delete" id="opt-delete"><i class="ph ph-trash"></i> Hapus Memory</div>
+        <div class="sheet-option" onclick="closeOverlay()"><i class="ph ph-x"></i> Batal</div>
+    </div>
+</div>
+
+<nav class="bottom-nav">
+    <a href="#" class="nav-link active" onclick="switchPage('home', this)"><i class="ph ph-house"></i>Home</a>
+    <a href="#" class="nav-link" onclick="switchPage('wishlist', this)"><i class="ph ph-heart"></i>Wishlist</a>
+    <a href="#" class="nav-link" onclick="switchPage('planner', this)"><i class="ph ph-calendar-plus"></i>Trips</a>
+    <a href="#" class="nav-link" onclick="switchPage('memories', this)"><i class="ph ph-planet"></i>Memories</a>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let db = {
+    wishlist: JSON.parse(localStorage.getItem('j_wish')) || [],
+    trips: JSON.parse(localStorage.getItem('j_trips')) || []
+};
+
+let map;
+let pressTimer;
+
+window.addEventListener('load', () => {
+    initMap();
+    updateDashboard();
+    renderHomeTrips();
+    // Load Dark Mode Preference
+    if(localStorage.getItem('j_dark') === 'true') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('dark-mode-toggle').checked = true;
+    }
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        splash.style.opacity = '0';
+        setTimeout(() => splash.style.display = 'none', 800);
+    }, 1500);
+});
+
+// --- BACKUP & SETTINGS LOGIC ---
+function openSettings() {
+    const mask = document.getElementById('settings-overlay');
+    const sheet = mask.querySelector('.bottom-sheet');
+    mask.style.display = 'flex';
+    setTimeout(() => sheet.style.transform = 'translateY(0)', 10);
+}
+
+function closeSettings() {
+    const mask = document.getElementById('settings-overlay');
+    const sheet = mask.querySelector('.bottom-sheet');
+    sheet.style.transform = 'translateY(100%)';
+    setTimeout(() => mask.style.display = 'none', 300);
+}
+
+function toggleDarkMode() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('j_dark', isDark);
+}
+
+function exportData() {
+    const dataStr = JSON.stringify(db);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `joliiday-backup-${new Date().toISOString().split('T')[0]}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (imported.wishlist && imported.trips) {
+                if (confirm("Import data akan menggantikan data saat ini. Lanjutkan?")) {
+                    db = imported;
+                    save();
+                    location.reload(); // Refresh to apply data
+                }
+            } else {
+                alert("Format file tidak valid.");
+            }
+        } catch (err) {
+            alert("Gagal membaca file.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+// --- ORIGINAL LOGIC ---
+function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([-2.5489, 118.0149], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+}
+
+const save = () => {
+    localStorage.setItem('j_wish', JSON.stringify(db.wishlist));
+    localStorage.setItem('j_trips', JSON.stringify(db.trips));
+    updateDashboard();
+};
+
+function switchPage(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    const target = document.getElementById(`page-${id}`);
+    if (target) target.classList.remove('hidden');
+
+    if(el) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+    }
+
+    if(id === 'home') { renderHomeTrips(); if(map) map.invalidateSize(); }
+    if(id === 'wishlist') renderWishlist();
+    if(id === 'memories') renderMemories();
+}
+
+function addPlaceRow(val = '') {
+    const input = document.createElement('input');
+    input.className = 'p-place-item';
+    input.placeholder = 'Destinasi...';
+    input.value = val;
+    document.getElementById('place-inputs-container').appendChild(input);
+}
+
+function saveTrip() {
+    const name = document.getElementById('p-name').value;
+    const start = document.getElementById('p-start').value;
+    const bucket = document.getElementById('p-bucket').value;
+    if(!name || !start) return alert("Isi nama dan tanggal!");
+
+    db.trips.push({
+        id: Date.now(), name, start, end: document.getElementById('p-end').value,
+        status: 'planned', rating: 0, photo: null, journal: '', isFavorite: false, bucketList: bucket,
+        places: Array.from(document.querySelectorAll('.p-place-item')).map(i => ({
+            name: i.value, done: false, photo: null, notes: ''
+        })).filter(p => p.name)
+    });
+
+    save();
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-start').value = '';
+    document.getElementById('p-end').value = '';
+    document.getElementById('p-bucket').value = '';
+    document.getElementById('place-inputs-container').innerHTML = '<input type="text" class="p-place-item" placeholder="Contoh: Museum Nasional">';
+    switchPage('home', document.querySelectorAll('.nav-link')[0]);
+}
+
+function renderHomeTrips() {
+    const cont = document.getElementById('home-trip-list');
+    const today = new Date().toISOString().split('T')[0];
+    const planned = db.trips.filter(t => t.status === 'planned');
+
+    cont.innerHTML = planned.map(t => {
+        const isOngoing = today >= t.start && (t.end ? today <= t.end : true);
+        return `<div class="card" onclick="viewDetail(${t.id})" style="cursor:pointer; border-left: 5px solid ${isOngoing ? 'var(--sage)' : '#FFD180'};"> 
+            <i class="ph ph-trash delete-btn" onclick="event.stopPropagation(); deleteTrip(${t.id})"></i>
+            <div class="trip-badge ${isOngoing ? 'badge-ongoing' : 'badge-coming'}">${isOngoing ? 'ON GOING' : 'PLANNED'}</div>
+            <div style="font-size:17px; font-weight:700;">${t.name}</div>
+            <div style="font-size:12px; color:gray; margin-top:5px;">${t.start}</div>
+        </div>`;
+    }).join('') || '<p style="text-align:center; color:#AAA; font-size:12px; margin-top:20px;">Belum ada rencana perjalanan.</p>';
+}
+
+function deleteTrip(id) {
+    if(confirm("Hapus rencana ini?")) {
+        db.trips = db.trips.filter(t => t.id !== id);
+        save();
+        renderHomeTrips();
+    }
+}
+
+function renderMemories() {
+    const comp = db.trips.filter(t => t.status === 'completed').reverse();
+    const cont = document.getElementById('memories-container');
+    
+    cont.innerHTML = comp.map(t => {
+        const destPhotos = t.places.filter(p => p.photo).map(p => p.photo);
+        const maxDisplay = 5;
+        const hasMore = destPhotos.length > maxDisplay;
+        const displayPhotos = destPhotos.slice(0, maxDisplay);
+
+        return `
+        <div class="card mem-card" 
+             onclick="viewMemoryDetail(${t.id})" 
+             onmousedown="startPress(${t.id})" onmouseup="endPress()" 
+             ontouchstart="startPress(${t.id})" ontouchend="endPress()">
+            <div class="floating-love ${t.isFavorite ? 'is-active' : ''}" 
+                 onclick="event.stopPropagation(); toggleFavoriteMemory(${t.id})">
+                <i class="${t.isFavorite ? 'ph-fill' : 'ph'} ph-heart"></i>
+            </div>
+            ${t.photo ? `<img src="${t.photo}" class="mem-photo-main">` : `<div class="mem-photo-main" style="background:#eee"></div>`}
+            <div class="mem-content">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h3 style="font-size:18px; flex:1;">${t.name}</h3>
+                    <div style="font-size:11px; color:gray; text-align:right;">${t.start}<br>${t.end || ''}</div>
+                </div>
+                <div style="color:var(--gold); font-size:14px; margin-top:4px;">
+                    ${'★'.repeat(t.rating)}${'☆'.repeat(5-t.rating)}
+                </div>
+                <p class="mem-journal-summary">${t.journal || 'Tidak ada catatan perjalanan.'}</p>
+            </div>
+            
+            ${destPhotos.length > 0 ? `
+                <div class="mem-thumb-strip">
+                    ${displayPhotos.map((img, idx) => `
+                        <div class="mem-thumb-wrapper">
+                            <img src="${img}" class="mem-thumb-img">
+                            ${(idx === maxDisplay - 1 && hasMore) ? `<div class="mem-thumb-more">+${destPhotos.length - maxDisplay}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>`;
+    }).join('') || '<p style="text-align:center; color:#AAA; font-size:12px; margin-top:40px;">Belum ada memori.</p>';
+}
+
+function toggleFavoriteMemory(id) {
+    const t = db.trips.find(x => x.id === id);
+    t.isFavorite = !t.isFavorite;
+    save();
+    renderMemories();
+}
+
+function startPress(id) {
+    pressTimer = window.setTimeout(() => showOverlay(id), 600);
+}
+
+function endPress() {
+    clearTimeout(pressTimer);
+}
+
+function showOverlay(id) {
+    const mask = document.getElementById('mem-overlay');
+    const sheet = mask.querySelector('.bottom-sheet');
+    mask.style.display = 'flex';
+    setTimeout(() => sheet.style.transform = 'translateY(0)', 10);
+
+    document.getElementById('opt-detail').onclick = () => { closeOverlay(); viewMemoryDetail(id); };
+    document.getElementById('opt-delete').onclick = () => { closeOverlay(); deleteMemory(id); };
+}
+
+function closeOverlay() {
+    const mask = document.getElementById('mem-overlay');
+    const sheet = mask.querySelector('.bottom-sheet');
+    sheet.style.transform = 'translateY(100%)';
+    setTimeout(() => mask.style.display = 'none', 300);
+}
+
+function deleteMemory(id) {
+    if(confirm("Yakin ingin menghapus memory ini?")) {
+        db.trips = db.trips.filter(t => t.id !== id);
+        save();
+        renderMemories();
+    }
+}
+
+function viewDetail(tripId) {
+    const t = db.trips.find(x => x.id === tripId);
+    document.getElementById('active-detail').innerHTML = `<div class="card"> 
+        <div class="section-title"><i class="ph ph-map-pin"></i> ${t.name}</div>
+        ${t.bucketList ? `
+        <div style="background:#FFF8E1; padding:15px; border-radius:15px; margin-bottom:20px; border:1px dashed var(--terracotta);">
+            <b style="font-size:12px; color:var(--terracotta);"><i class="ph ph-sparkle"></i> BUCKET LIST DREAMS:</b>
+            <p style="font-size:13px; margin-top:5px; white-space: pre-wrap;">${t.bucketList}</p>
+        </div>` : ''}
+        <div id="dest-items-list">
+        ${t.places.map((p, i) => `
+            <div class="dest-item-card">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <input type="checkbox" style="width:20px; height:20px;" ${p.done ? 'checked' : ''} onchange="updateDest(${t.id}, ${i}, 'done', this.checked)"> <b>${p.name}</b>
+                </div>
+                <div class="dest-photo-box" onclick="document.getElementById('img-${t.id}-${i}').click()">
+                    ${p.photo ? `<img src="${p.photo}">` : '<div><i class="ph ph-camera"></i> Add Photo</div>'}
+                </div>
+                <input type="file" id="img-${t.id}-${i}" class="hidden" onchange="uploadDestPhoto(event, ${t.id}, ${i})">
+                <textarea style="margin-top:10px; font-size:12px;" placeholder="Tulis catatan..." onchange="updateDest(${t.id}, ${i}, 'notes', this.value)">${p.notes || ''}</textarea>
+            </div>
+        `).join('')}
+        </div>
+        <button class="btn" onclick="showFinalTrip(${t.id})">Lanjut ke Summary</button>
+        <button class="btn" style="background:rgba(128,128,128,0.1); color:#666; margin-top:10px;" onclick="switchPage('home')">Kembali</button>
+    </div>`;
+    switchPage('active');
+}
+
+function updateDest(tripId, idx, field, val) {
+    db.trips.find(t => t.id === tripId).places[idx][field] = val;
+    save();
+}
+
+function uploadDestPhoto(ev, tripId, idx) {
+    const r = new FileReader();
+    r.onload = () => {
+        db.trips.find(t => t.id === tripId).places[idx].photo = r.result;
+        save(); viewDetail(tripId);
+    };
+    r.readAsDataURL(ev.target.files[0]);
+}
+
+function showFinalTrip(id) {
+    const t = db.trips.find(x => x.id === id);
+    document.getElementById('active-detail').innerHTML = `<div class="card">
+        <div class="section-title" style="justify-content:center;">Final Trip Summary</div>
+        <div class="photo-placeholder" onclick="document.getElementById('final-photo-input').click()">
+            ${t.photo ? `<img src="${t.photo}">` : '<div><i class="ph ph-image-square" style="font-size:30px;"></i><br>Add Favorite Photo</div>'}
+        </div>
+        <input type="file" id="final-photo-input" class="hidden" onchange="uploadFinalPhoto(event, ${id})">
+        <div class="heart-toggle ${t.isFavorite ? 'is-fav' : ''}" onclick="toggleFavorite(${id})">
+            <i class="${t.isFavorite ? 'ph-fill' : 'ph'} ph-heart"></i>
+            <div style="font-size:10px; margin-top:4px;">Mark as Favorite</div>
+        </div>
+        <div class="star-rating">${renderStars(t.rating, id)}</div>
+        <textarea id="final-journal" rows="4" placeholder="Bagaimana perasaanmu selama trip ini?">${t.journal}</textarea>
+        <button class="btn" onclick="completeTrip(${id})">Save to Memories</button>
+        <button class="btn" style="background:rgba(128,128,128,0.1); color:#666; margin-top:10px;" onclick="viewDetail(${id})">Kembali</button>
+    </div>`;
+}
+
+function toggleFavorite(id) {
+    const t = db.trips.find(x => x.id === id);
+    t.isFavorite = !t.isFavorite;
+    save();
+    showFinalTrip(id);
+}
+
+function uploadFinalPhoto(ev, tripId) {
+    const r = new FileReader();
+    r.onload = () => {
+        db.trips.find(t => t.id === tripId).photo = r.result;
+        save(); showFinalTrip(tripId);
+    };
+    r.readAsDataURL(ev.target.files[0]);
+}
+
+function renderStars(rating, id) {
+    let s = '';
+    for(let i=1; i<=5; i++) s += `<i class="${rating >= i ? 'ph-fill' : 'ph'} ph-star" style="cursor:pointer" onclick="setR(${id}, ${i})"></i>`;
+    return s;
+}
+
+function setR(id, v) { db.trips.find(x=>x.id===id).rating = v; save(); showFinalTrip(id); }
+
+function completeTrip(id) {
+    const t = db.trips.find(x => x.id === id);
+    t.status = 'completed';
+    t.journal = document.getElementById('final-journal').value;
+    save();
+    switchPage('memories', document.querySelectorAll('.nav-link')[3]);
+}
+
+function viewMemoryDetail(id) {
+    const t = db.trips.find(x => x.id === id);
+    if(!t) return;
+    const content = document.getElementById('memory-detail-content');
+
+    content.innerHTML = `<div class="card">
+        <div class="section-title" onclick="switchPage('memories')" style="cursor:pointer">
+            <i class="ph ph-caret-left"></i> History: ${t.name}
+        </div>
+        ${t.photo ? `<img src="${t.photo}" style="width:100%; border-radius:15px; margin-bottom:15px;">` : ''}
+        <div style="margin-bottom:20px;">
+            <div style="font-size:24px; color:var(--gold); margin-bottom:5px;">${'★'.repeat(t.rating)}</div>
+            <p style="font-style:italic; background:rgba(128,128,128,0.05); padding:15px; border-radius:12px; line-height:1.6;">"${t.journal || 'Tidak ada jurnal.'}"</p>
+        </div>
+        <h4 style="margin-bottom:10px; font-size:14px; color:var(--sage); letter-spacing:1px;">REKAP DESTINASI:</h4>
+        ${t.places.map(p => `
+            <div class="dest-item-card" style="opacity: ${p.done ? '1' : '0.5'}">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <i class="ph ${p.done ? 'ph-check-circle' : 'ph-check-circle'}" style="color:var(--sage); font-size:20px;"></i>
+                    <b style="font-size:14px;">${p.name} ${p.done ? '' : '(Missed)'}</b>
+                </div>
+                ${p.photo ? `<img src="${p.photo}" style="width:100%; height:140px; object-fit:cover; border-radius:10px; margin-top:10px;">` : ''}
+                ${p.notes ? `<p style="font-size:12px; margin-top:8px; color:#888;">📝 ${p.notes}</p>` : ''}
+            </div>
+        `).join('')}
+        <button class="btn" style="background:rgba(128,128,128,0.1); color:#666; margin-top:10px;" onclick="switchPage('memories')">Kembali</button>
+    </div>`;
+
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    document.getElementById('page-memory-detail').classList.remove('hidden');
+}
+
+function addWish() {
+    const name = document.getElementById('wish-name').value;
+    if(!name) return;
+    db.wishlist.push({ id: Date.now(), name, photo: null, bucketList: '' });
+    save(); renderWishlist();
+    document.getElementById('wish-name').value = '';
+}
+
+function renderWishlist() {
+    const cont = document.getElementById('wish-list-container');
+    cont.innerHTML = db.wishlist.map(w => `<div class="card wish-card">
+        <i class="ph ph-trash delete-btn" onclick="deleteWish(${w.id})"></i>
+        <h3 style="margin-bottom:12px;">${w.name}</h3>
+        <div class="photo-placeholder" style="height:140px;" onclick="document.getElementById('wish-img-${w.id}').click()">
+            ${w.photo ? `<img src="${w.photo}">` : '<div><i class="ph ph-image-square"></i> Moodboard</div>'}
+        </div>
+        <input type="file" id="wish-img-${w.id}" class="hidden" onchange="uploadWishImg(event, ${w.id})">
+        <textarea placeholder="Apa saja impianmu di sini?" onchange="updateWishBucket(${w.id}, this.value)">${w.bucketList || ''}</textarea>
+        <button class="btn manifest-btn" onclick="manifestIt(${w.id})">Manifest It! <i class="ph ph-magic-wand"></i></button>
+    </div>`).join('') || '<p style="text-align:center; color:#AAA; font-size:12px; margin-top:20px;">Tuliskan destinasi impianmu!</p>';
+}
+
+function uploadWishImg(ev, id) {
+    const r = new FileReader();
+    r.onload = () => { db.wishlist.find(x => x.id === id).photo = r.result; save(); renderWishlist(); };
+    r.readAsDataURL(ev.target.files[0]);
+}
+
+function updateWishBucket(id, val) { db.wishlist.find(x => x.id === id).bucketList = val; save(); }
+function deleteWish(id) { if(confirm("Hapus dari wishlist?")) { db.wishlist = db.wishlist.filter(x => x.id !== id); save(); renderWishlist(); }}
+
+function manifestIt(id) {
+    const wishIdx = db.wishlist.findIndex(x => x.id === id);
+    const wish = db.wishlist[wishIdx];
+    switchPage('planner', document.querySelectorAll('.nav-link')[2]);
+    document.getElementById('p-name').value = wish.name;
+    document.getElementById('p-bucket').value = wish.bucketList;
+    db.wishlist.splice(wishIdx, 1);
+    save();
+    renderWishlist();
+    alert("✨ Impian '" + wish.name + "' dipindahkan ke Planner!");
+}
+
+function updateDashboard() {
+    const v = db.trips.filter(t=>t.status==='completed').length;
+    document.getElementById('stat-visited').innerText = v;
+    document.getElementById('stat-wish').innerText = db.wishlist.length;
+    document.getElementById('main-progress').style.width = Math.min(v, 100) + '%';
+    document.getElementById('dest-count').innerText = v + '/100';
+}
+</script>
+</body>
+</html>
